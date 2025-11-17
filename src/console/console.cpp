@@ -45,7 +45,8 @@ void Console::Update(float deltaTime)
 
         if (ImGui::IsKeyPressed(ImGuiKey_Slash))
             IsActive = true;
-
+        
+        //FIX: STOP TAKING KEYBOARD INPUT WHEN WE'RE NOT ACTIVE!
         ImGuiIO &io = *IOContext;
         for (int n = 0; n < io.InputQueueCharacters.Size; n++)
         {
@@ -65,8 +66,10 @@ void Console::Update(float deltaTime)
             IsActive = false;
         }
     }
+}
 
-    for (auto &cmd : QueuedCommands)
+void Console::ExecuteCommands() {
+     for (auto &cmd : QueuedCommands)
         Execute(cmd);
 
     QueuedCommands.clear();
@@ -74,6 +77,8 @@ void Console::Update(float deltaTime)
 
 void Console::Draw()
 {
+    if(!IsActive)
+        return;
     ImDrawList *draw_list = ImGui::GetBackgroundDrawList();
     ImVec2 io_size = IOContext->DisplaySize;
     float padding = 5.f, title_h = 20.f, input_h = 20.f;
@@ -85,6 +90,21 @@ void Console::Draw()
     float height = std::clamp(title_h + input_h + LogEntries.size() * 20.f + padding, 60.f, io_size.y * 0.5f);
     float x = padding, y = io_size.y - height - padding;
 
+    draw_list->AddRectFilled({x, y}, {x + width, y + height},
+                             IM_COL32(40, 40, 40, 220), 0.f);
+    draw_list->AddRect({x, y}, {x + width, y + height},
+                       IM_COL32(235, 203, 139, 200), 0.f, 0, 1.5f);
+    draw_list->AddRectFilled({x, y}, {x + width, y + title_h},
+                             IM_COL32(60, 60, 60, 255), 0.f, 0);
+    draw_list->AddLine({x, y + title_h}, {x + width, y + title_h},
+                       IM_COL32(235, 203, 139, 200));
+    draw_list->AddText({x + 5, y + 3},
+                       IM_COL32(235, 203, 139, 255), "console");
+
+    std::string prompt = "> " + InputBuffer + ((int)(ImGui::GetTime() * 2) % 2 ? "_" : "");
+    draw_list->AddText({x + 5, y + height - input_h},
+                       IM_COL32(142, 192, 124, 255), prompt.c_str());
+
     float log_y = y + title_h + 5.f;
     for (auto it = LogEntries.rbegin(); it != LogEntries.rend(); ++it)
     {
@@ -92,26 +112,6 @@ void Console::Draw()
         log_y += 20.f;
         if (log_y > y + height - input_h - padding)
             break;
-    }
-
-    if (IsActive)
-    {
-        std::lock_guard<std::mutex> lock(Mutex);
-        draw_list->AddRectFilled({x, y}, {x + width, y + height},
-                                 IM_COL32(40, 40, 40, 220), 0.f);
-        draw_list->AddRect({x, y}, {x + width, y + height},
-                           IM_COL32(235, 203, 139, 200), 0.f, 0, 1.5f);
-        draw_list->AddRectFilled({x, y}, {x + width, y + title_h},
-                                 IM_COL32(60, 60, 60, 255), 0.f, 0);
-        draw_list->AddLine({x, y + title_h}, {x + width, y + title_h},
-                           IM_COL32(235, 203, 139, 200));
-        draw_list->AddText({x + 5, y + 3},
-                           IM_COL32(235, 203, 139, 255), "console");
-
-
-        std::string prompt = "> " + InputBuffer + ((int)(ImGui::GetTime() * 2) % 2 ? "_" : "");
-        draw_list->AddText({x + 5, y + height - input_h},
-                           IM_COL32(142, 192, 124, 255), prompt.c_str());
     }
 }
 

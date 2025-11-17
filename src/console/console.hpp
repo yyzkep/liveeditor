@@ -62,6 +62,8 @@ public:
     void ParseFunction(const std::string& commandLine);
     void CallFunction(const std::string& commandLine);
 
+    void ExecuteCommands();
+
     void Log(const std::string& message);
     std::shared_ptr<BaseEntity> FindEntity(const std::string& name);
 

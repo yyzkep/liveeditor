@@ -6,25 +6,29 @@
 #include <thread>
 #include <Windows.h>
 
-int main() {
+int main()
+{
     CLogger logger;
     logger.Info("program start");
-    
+
     try
     {
         Window window{800, 600, "etherion"};
         Camera camera{};
         World world{"main_world"};
         world.SetCamera(camera);
-        ImGuiIO* io = &ImGui::GetIO();
+        ImGuiIO *io = &ImGui::GetIO();
         Console console{&world, io};
-        while(!glfwWindowShouldClose(window.GetGlfwWindow())) {
+        while (!glfwWindowShouldClose(window.GetGlfwWindow()))
+        {
             window.ProcessInput();
             window.BeginFrame();
-            console.Update(window.GetDeltaTime());
 
-             if(!console.WantsInput()) {
-                camera.Update(window.GetGlfwWindow(), window.GetDeltaTime());
+            camera.Update(window.GetGlfwWindow(), window.GetDeltaTime());
+            console.Update(window.GetDeltaTime());
+            if (console.WantsInput())
+            {
+             //TODO: FIX CONSOLE FUCK   
             }
 
             console.Draw();
@@ -32,13 +36,13 @@ int main() {
             window.EndFrame();
         }
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         logger.Error(e.what());
         Sleep(10000);
         return -1;
     }
-    
+
     logger.Info("program end");
     return 0;
 }
