@@ -23,8 +23,8 @@ class World : public BaseEntity {
     void RemoveEntity(const std::shared_ptr<BaseEntity>& entity);
     void Clear();
 
-    void SetCamera(std::shared_ptr<Camera> camera);
-    std::shared_ptr<Camera> GetCamera() const;
+    void SetCamera(Camera& camera);
+    Camera GetCamera() const;
 
     void DrawAll(float aspectRatio);
     size_t GetEntityCount() const { return entities_.size(); }
@@ -44,7 +44,7 @@ class World : public BaseEntity {
   private:
     std::vector<std::shared_ptr<BaseEntity>> entities_;
     std::shared_ptr<BaseEntity> worldRoot_;
-    std::shared_ptr<Camera> camera_;
+    Camera camera_;
 };
 
 #endif // WORLD_HPP

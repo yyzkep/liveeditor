@@ -81,6 +81,11 @@ class Renderable {
                     shader_->SetVec3(key, v);
                 else if constexpr (std::is_same_v<T, glm::vec4>)
                     shader_->SetVec4(key, v);
+                else if constexpr (std::is_same_v<T, glm::mat4>)
+                    shader_->SetMat4(key, v);
+                else if constexpr (std::is_same_v<T, std::string>)
+                    shader_->SetInt(key, std::stoi(v));
+
             }, val);
         }
 

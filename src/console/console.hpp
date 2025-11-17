@@ -46,7 +46,7 @@ struct PendingWait {
 
 class Console {
 public:
-    Console(World* world);
+    Console(World* world, ImGuiIO* contextio);
 
     bool WantsInput() const;
     void Update(float deltaTime);
@@ -78,6 +78,7 @@ private:
     ImGuiIO* IOContext;
 
     std::unordered_map<std::string, ConsoleCommand> Commands;
+    std::vector<std::string> QueuedCommands;
     std::vector<RunningScript> RunningScripts;
     std::unordered_map<std::string, ScriptFunction> Functions;
     std::vector<PendingWait> PendingWaits;

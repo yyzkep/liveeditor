@@ -184,3 +184,92 @@ void Shader::CheckCompileErrors(GLuint shader, const std::string& type) {
         }
     }
 }
+
+std::unordered_map<std::string, Shader::UniformValue> Shader::GetActiveUniformValues() const {
+    std::unordered_map<std::string, UniformValue> result;
+
+    GLint uniformCount = 0;
+    glGetProgramiv(programId, GL_ACTIVE_UNIFORMS, &uniformCount);
+
+    GLint maxNameLength = 0;
+    glGetProgramiv(programId, GL_ACTIVE_UNIFORM_MAX_LENGTH, &maxNameLength);
+
+    std::vector<char> nameData(maxNameLength);
+
+    for (GLint i = 0; i < uniformCount; i++) {
+        GLsizei nameLength = 0;
+        GLint size = 0;
+        GLenum type = 0;
+
+        glGetActiveUniform(programId, i, maxNameLength, &nameLength, &size, &type, nameData.data());
+        std::string name(nameData.data(), nameLength);
+
+        GLint location = glGetUniformLocation(programId, name.c_str());
+        if (location < 0) continue;
+
+        switch (type) {
+
+        case GL_INT: {
+            GLint v;
+            glGetUniformiv(programId, location, &v);
+            result[name] = static_cast<int>(v);
+            break;
+        }
+
+        case GL_BOOL: {
+            GLint v;
+            glGetUniformiv(programId, location, &v);
+            result[name] = (v != 0);
+            break;
+        }
+
+        case GL_FLOAT: {
+            GLfloat v;
+            glGetUniformfv(programId, location, &v);
+            result[name] = static_cast<float>(v);
+            break;
+        }
+
+        case GL_FLOAT_VEC2: {
+            GLfloat v[2];
+            glGetUniformfv(programId, location, v);
+            result[name] = glm::vec2(v[0], v[1]);
+            break;
+        }
+
+        case GL_FLOAT_VEC3: {
+            GLfloat v[3];
+            glGetUniformfv(programId, location, v);
+            result[name] = glm::vec3(v[0], v[1], v[2]);
+            break;
+        }
+
+        case GL_FLOAT_VEC4: {
+            GLfloat v[4];
+            glGetUniformfv(programId, location, v);
+            result[name] = glm::vec4(v[0], v[1], v[2], v[3]);
+            break;
+        }
+
+        case GL_FLOAT_MAT4: {
+            GLfloat m[16];
+            glGetUniformfv(programId, location, m);
+            result[name] = glm::make_mat4(m);
+            break;
+        }
+
+        case GL_SAMPLER_2D:
+        case GL_SAMPLER_CUBE: {
+            GLint v;
+            glGetUniformiv(programId, location, &v);
+            result[name] = static_cast<int>(v);
+            break;
+        }
+
+        default:
+            break;
+        }
+    }
+
+    return result;
+}

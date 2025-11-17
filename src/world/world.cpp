@@ -2,6 +2,16 @@
 #include <algorithm>
 #include <iostream>
 
+
+World::World(const char* name) {
+    //fuck c++
+    worldRoot_ = std::move(CreateEntity(glm::vec3(0.f), glm::vec3(0.f), glm::vec3(1.f), name));
+}
+
+World::~World() noexcept {
+    RemoveEntity(worldRoot_);
+}
+
 std::shared_ptr<BaseEntity> World::CreateEntity(
     const glm::vec3& position,
     const glm::vec3& rotation,
@@ -46,17 +56,20 @@ void World::Clear() {
     entities_.clear();
 }
 
-void World::DrawAll(float aspectRatio) {
-    if (!camera_) {
-        std::cerr << "[WORLD][ERROR] Cannot draw: No active camera set." << std::endl;
-        return;
-    }
+void World::SetCamera(Camera& camera) {
+    camera_ = camera;
+}
 
+Camera World::GetCamera() const {
+    return camera_;
+}
+
+void World::DrawAll(float aspectRatio) {
     if (entities_.empty())
         return;
 
     for (auto& entity : entities_) {
         if (entity)
-            entity->Draw(*camera_, aspectRatio);
+            entity->Draw(camera_, aspectRatio);
     }
 }
