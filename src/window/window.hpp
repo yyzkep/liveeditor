@@ -49,7 +49,7 @@ public:
     }
 
     // ======= Getters & Setters =======
-    GLFWwindow* GetGlfwWindow() const { return window; }
+    GLFWwindow* GetGLFWwindow() const { return window; }
 
     int GetScreenWidth() const { return screenWidth; }
     void SetScreenWidth(int width) { screenWidth = width; }

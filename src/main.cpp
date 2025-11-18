@@ -1,43 +1,37 @@
-#include "window/window.hpp"
-#include "logging/logger.hpp"
-#include "world/world.hpp"
 #include "console/console.hpp"
+#include "logging/logger.hpp"
+#include "window/window.hpp"
+#include "world/world.hpp"
 
-#include <thread>
 #include <Windows.h>
+#include <thread>
 
-int main()
-{
+int main() {
     CLogger logger;
     logger.Info("program start");
 
-    try
-    {
+    try {
         Window window{800, 600, "etherion"};
         Camera camera{};
         World world{"main_world"};
         world.SetCamera(camera);
         ImGuiIO *io = &ImGui::GetIO();
         Console console{&world, io};
-        while (!glfwWindowShouldClose(window.GetGlfwWindow()))
-        {
+        while (!glfwWindowShouldClose(window.GetGLFWwindow())) {
             window.ProcessInput();
             window.BeginFrame();
+            camera.Update(window.GetGLFWwindow(), window.GetDeltaTime());
 
-            camera.Update(window.GetGlfwWindow(), window.GetDeltaTime());
-            console.Update(window.GetDeltaTime());
-            if (console.WantsInput())
-            {
-             //TODO: FIX CONSOLE FUCK   
+            if (console.WantsInput()) {
+                console.Update(window.GetDeltaTime());
             }
 
             console.Draw();
+
             world.DrawAll(static_cast<float>(window.GetScreenWidth() / window.GetScreenHeight()));
             window.EndFrame();
         }
-    }
-    catch (const std::exception &e)
-    {
+    } catch (const std::exception &e) {
         logger.Error(e.what());
         Sleep(10000);
         return -1;

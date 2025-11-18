@@ -8,7 +8,7 @@ World::World(const char* name) {
     worldRoot_ = std::move(CreateEntity(glm::vec3(0.f), glm::vec3(0.f), glm::vec3(1.f), name));
 }
 
-World::~World() noexcept {
+World::~World() {
     RemoveEntity(worldRoot_);
 }
 
@@ -57,6 +57,7 @@ void World::Clear() {
 }
 
 void World::SetCamera(Camera& camera) {
+    //THIS FUCK WAS CAUSING ME TO GET ACCESS VIOLATED SINCE IT WAS A FUCKING SHARED_PTR... FUCK SHARED_PTRS...
     camera_ = camera;
 }
 

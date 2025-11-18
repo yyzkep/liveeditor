@@ -3,20 +3,14 @@
 #include <iomanip>
 #include <sstream>
 
-Console::Console(World *world, ImGuiIO *io)
-    : WorldPointer(world), IOContext(io)
-{
+Console::Console(World *world, ImGuiIO *io) : WorldPointer(world), IOContext(io) {
     Log("[CONSOLE] Initialized console system");
     RegisterDefaultCommands();
 }
 
-bool Console::WantsInput() const
-{
-    return IsActive;
-}
+bool Console::WantsInput() const { return IsActive; }
 
-void Console::Update(float deltaTime)
-{
+void Console::Update(float deltaTime) {
     {
         std::lock_guard<std::mutex> lock(Mutex);
 
@@ -24,60 +18,55 @@ void Console::Update(float deltaTime)
             entry.TimeAlive -= deltaTime;
 
         LogEntries.erase(
-            std::remove_if(LogEntries.begin(), LogEntries.end(),
-                           [](const LogEntry &e)
-                           { return e.TimeAlive <= 0.f; }),
+            std::remove_if(LogEntries.begin(), LogEntries.end(), [](const LogEntry &e) { return e.TimeAlive <= 0.f; }),
             LogEntries.end());
 
-        for (auto it = PendingWaits.begin(); it != PendingWaits.end();)
-        {
+        for (auto it = PendingWaits.begin(); it != PendingWaits.end();) {
             it->RemainingTime -= deltaTime;
-            if (it->RemainingTime <= 0.0f)
-            {
+            if (it->RemainingTime <= 0.0f) {
                 QueuedCommands.push_back(it->NextCommand);
                 it = PendingWaits.erase(it);
-            }
-            else
-            {
+            } else {
                 ++it;
             }
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Slash))
-            IsActive = true;
-        
-        //FIX: STOP TAKING KEYBOARD INPUT WHEN WE'RE NOT ACTIVE!
-        ImGuiIO &io = *IOContext;
-        for (int n = 0; n < io.InputQueueCharacters.Size; n++)
-        {
-            ImWchar c = io.InputQueueCharacters[n];
-            if (c >= 32 && c != 127)
-                InputBuffer.push_back((char)c);
-        }
-        io.InputQueueCharacters.resize(0);
+            IsActive = !IsActive;
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !InputBuffer.empty())
-            InputBuffer.pop_back();
+        if (IsActive) {
+            ImGuiIO &io = *IOContext;
+            for (int n = 0; n < io.InputQueueCharacters.Size; n++) {
+                ImWchar c = io.InputQueueCharacters[n];
+                if (c >= 32 && c != 127)
+                    InputBuffer.push_back((char)c);
+            }
+            io.InputQueueCharacters.resize(0);
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Enter))
-        {
-            QueuedCommands.push_back(InputBuffer);
-            InputBuffer.clear();
-            IsActive = false;
+            if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !InputBuffer.empty())
+                InputBuffer.pop_back();
+            else if (InputBuffer.empty() && ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
+                IsActive = false;
+            }
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
+                QueuedCommands.push_back(InputBuffer);
+                InputBuffer.clear();
+                IsActive = false;
+            }
         }
     }
 }
 
 void Console::ExecuteCommands() {
-     for (auto &cmd : QueuedCommands)
+    for (auto &cmd : QueuedCommands)
         Execute(cmd);
 
     QueuedCommands.clear();
 }
 
-void Console::Draw()
-{
-    if(!IsActive)
+void Console::Draw() {
+    if (!IsActive)
         return;
     ImDrawList *draw_list = ImGui::GetBackgroundDrawList();
     ImVec2 io_size = IOContext->DisplaySize;
@@ -90,24 +79,17 @@ void Console::Draw()
     float height = std::clamp(title_h + input_h + LogEntries.size() * 20.f + padding, 60.f, io_size.y * 0.5f);
     float x = padding, y = io_size.y - height - padding;
 
-    draw_list->AddRectFilled({x, y}, {x + width, y + height},
-                             IM_COL32(40, 40, 40, 220), 0.f);
-    draw_list->AddRect({x, y}, {x + width, y + height},
-                       IM_COL32(235, 203, 139, 200), 0.f, 0, 1.5f);
-    draw_list->AddRectFilled({x, y}, {x + width, y + title_h},
-                             IM_COL32(60, 60, 60, 255), 0.f, 0);
-    draw_list->AddLine({x, y + title_h}, {x + width, y + title_h},
-                       IM_COL32(235, 203, 139, 200));
-    draw_list->AddText({x + 5, y + 3},
-                       IM_COL32(235, 203, 139, 255), "console");
+    draw_list->AddRectFilled({x, y}, {x + width, y + height}, IM_COL32(40, 40, 40, 220), 0.f);
+    draw_list->AddRect({x, y}, {x + width, y + height}, IM_COL32(235, 203, 139, 200), 0.f, 0, 1.5f);
+    draw_list->AddRectFilled({x, y}, {x + width, y + title_h}, IM_COL32(60, 60, 60, 255), 0.f, 0);
+    draw_list->AddLine({x, y + title_h}, {x + width, y + title_h}, IM_COL32(235, 203, 139, 200));
+    draw_list->AddText({x + 5, y + 3}, IM_COL32(235, 203, 139, 255), "console");
 
     std::string prompt = "> " + InputBuffer + ((int)(ImGui::GetTime() * 2) % 2 ? "_" : "");
-    draw_list->AddText({x + 5, y + height - input_h},
-                       IM_COL32(142, 192, 124, 255), prompt.c_str());
+    draw_list->AddText({x + 5, y + height - input_h}, IM_COL32(142, 192, 124, 255), prompt.c_str());
 
     float log_y = y + title_h + 5.f;
-    for (auto it = LogEntries.rbegin(); it != LogEntries.rend(); ++it)
-    {
+    for (auto it = LogEntries.rbegin(); it != LogEntries.rend(); ++it) {
         draw_list->AddText({x + 5, log_y}, IM_COL32(215, 153, 33, 255), it->Text.c_str());
         log_y += 20.f;
         if (log_y > y + height - input_h - padding)
@@ -115,8 +97,7 @@ void Console::Draw()
     }
 }
 
-void Console::Execute(const std::string &commandLine)
-{
+void Console::Execute(const std::string &commandLine) {
     if (commandLine.empty())
         return;
 
@@ -130,47 +111,34 @@ void Console::Execute(const std::string &commandLine)
     tokens.erase(tokens.begin());
 
     auto it = Commands.find(cmdName);
-    if (it != Commands.end())
-    {
-        try
-        {
+    if (it != Commands.end()) {
+        try {
             it->second.Execute(this, tokens);
-        }
-        catch (const std::exception &e)
-        {
+        } catch (const std::exception &e) {
             Log(std::string("[ERROR] Exception in command '") + cmdName + "': " + e.what());
         }
-    }
-    else
-    {
+    } else {
         Log("[ERROR] Unknown command: " + cmdName);
     }
 }
 
-void Console::ExecuteAsync(const std::string &commandLine)
-{
-    std::thread([this, commandLine]()
-                { Execute(commandLine); })
-        .detach();
+void Console::ExecuteAsync(const std::string &commandLine) {
+    std::thread([this, commandLine]() { Execute(commandLine); }).detach();
 }
 
-void Console::ExecuteScript(const std::string &script)
-{
+void Console::ExecuteScript(const std::string &script) {
     std::istringstream stream(script);
     std::string line;
 
-    while (std::getline(stream, line))
-    {
+    while (std::getline(stream, line)) {
         if (!line.empty())
             Execute(line);
     }
 }
 
-void Console::ExecuteFile(const std::string &filename)
-{
+void Console::ExecuteFile(const std::string &filename) {
     std::ifstream file(filename);
-    if (!file.is_open())
-    {
+    if (!file.is_open()) {
         Log("[ERROR] Could not open script file: " + filename);
         return;
     }
@@ -180,24 +148,21 @@ void Console::ExecuteFile(const std::string &filename)
     ExecuteScript(script.str());
 }
 
-void Console::ParseFunction(const std::string &commandLine)
-{
+void Console::ParseFunction(const std::string &commandLine) {
     std::string name;
     std::vector<std::string> params;
     std::string body;
 
     std::regex func_regex(R"(function\s+(\w+)\((.*?)\)\s+do\s*(.*?)\s*end)");
     std::smatch match;
-    if (std::regex_search(commandLine, match, func_regex))
-    {
+    if (std::regex_search(commandLine, match, func_regex)) {
         name = match[1];
         std::string param_str = match[2];
         body = match[3];
 
         std::stringstream ss(param_str);
         std::string param;
-        while (std::getline(ss, param, ','))
-        {
+        while (std::getline(ss, param, ',')) {
             param.erase(std::remove_if(param.begin(), param.end(), ::isspace), param.end());
             if (!param.empty())
                 params.push_back(param);
@@ -205,26 +170,21 @@ void Console::ParseFunction(const std::string &commandLine)
 
         Functions[name] = {params, body};
         Log("Defined function: " + name + " with " + std::to_string(params.size()) + " parameters");
-    }
-    else
-    {
+    } else {
         Log("Invalid function syntax!");
     }
 }
 
-void Console::CallFunction(const std::string &commandLine)
-{
+void Console::CallFunction(const std::string &commandLine) {
     auto args = SplitArgs(commandLine);
-    if (args.size() < 2)
-    {
+    if (args.size() < 2) {
         Log("Usage: call <function_name> [args...]");
         return;
     }
 
     std::string func_name = args[1];
     auto it = Functions.find(func_name);
-    if (it == Functions.end())
-    {
+    if (it == Functions.end()) {
         Log("Unknown function: " + func_name);
         return;
     }
@@ -242,8 +202,7 @@ void Console::CallFunction(const std::string &commandLine)
     ExecuteScript(expanded);
 }
 
-bool Console::EvaluateCondition(const std::string &fullParam, const std::string &op, const std::string &value)
-{
+bool Console::EvaluateCondition(const std::string &fullParam, const std::string &op, const std::string &value) {
     auto dot = fullParam.find('.');
     if (dot == std::string::npos)
         return false;
@@ -279,38 +238,28 @@ bool Console::EvaluateCondition(const std::string &fullParam, const std::string 
     return false;
 }
 
-bool Console::EvaluateExpression(const std::string &entityName, const std::string &expression)
-{
+bool Console::EvaluateExpression(const std::string &entityName, const std::string &expression) {
     std::istringstream ss(expression);
     std::vector<std::string> tokens;
     std::string t;
     while (ss >> t)
         tokens.push_back(t);
 
-    std::function<bool(size_t &, bool)> parse_expr = [&](size_t &idx, bool in_and) -> bool
-    {
+    std::function<bool(size_t &, bool)> parse_expr = [&](size_t &idx, bool in_and) -> bool {
         bool result = true;
-        while (idx < tokens.size())
-        {
+        while (idx < tokens.size()) {
             t = tokens[idx];
 
-            if (t == "and")
-            {
+            if (t == "and") {
                 idx++;
                 result = result && parse_expr(idx, true);
-            }
-            else if (t == "or")
-            {
+            } else if (t == "or") {
                 idx++;
                 result = result || parse_expr(idx, false);
-            }
-            else if (t == "not")
-            {
+            } else if (t == "not") {
                 idx++;
                 result = !parse_expr(idx, true);
-            }
-            else
-            {
+            } else {
                 if (idx + 2 >= tokens.size())
                     return false;
                 std::string param = t;
@@ -330,8 +279,7 @@ bool Console::EvaluateExpression(const std::string &entityName, const std::strin
     return parse_expr(i, true);
 }
 
-float Console::EvaluateNumericExpression(const std::string &expression, BaseEntity *entity)
-{
+float Console::EvaluateNumericExpression(const std::string &expression, BaseEntity *entity) {
     std::istringstream ss(expression);
     std::vector<std::string> tokens;
     std::string t;
@@ -341,41 +289,31 @@ float Console::EvaluateNumericExpression(const std::string &expression, BaseEnti
     float result = 0.f;
     std::string op = "+";
 
-    for (size_t idx = 0; idx < tokens.size(); ++idx)
-    {
+    for (size_t idx = 0; idx < tokens.size(); ++idx) {
         t = tokens[idx];
         float val = 0.f;
 
-        try
-        {
+        try {
             val = std::stof(t); // numeric literal
-        }
-        catch (...)
-        {
+        } catch (...) {
             // entity.param
             auto dot = t.find('.');
-            if (dot != std::string::npos)
-            {
+            if (dot != std::string::npos) {
                 std::string entity_name = t.substr(0, dot);
                 std::string param_name = t.substr(dot + 1);
                 auto e = FindEntity(entity_name);
-                if (e)
-                {
+                if (e) {
                     auto v = e->Params().Get(param_name);
-                    if (v)
-                    {
+                    if (v) {
                         if (auto f = std::get_if<float>(&*v))
                             val = *f;
                         else if (auto i = std::get_if<int>(&*v))
                             val = (float)(*i);
                     }
                 }
-            }
-            else if (entity)
-            {
+            } else if (entity) {
                 auto v = entity->Params().Get(t);
-                if (v)
-                {
+                if (v) {
                     if (auto f = std::get_if<float>(&*v))
                         val = *f;
                     else if (auto i = std::get_if<int>(&*v))
@@ -393,11 +331,9 @@ float Console::EvaluateNumericExpression(const std::string &expression, BaseEnti
         else if (op == "/")
             result /= val;
 
-        if (idx + 1 < tokens.size())
-        {
+        if (idx + 1 < tokens.size()) {
             std::string next = tokens[idx + 1];
-            if (next == "+" || next == "-" || next == "*" || next == "/")
-            {
+            if (next == "+" || next == "-" || next == "*" || next == "/") {
                 op = next;
                 idx++;
             }
@@ -407,115 +343,58 @@ float Console::EvaluateNumericExpression(const std::string &expression, BaseEnti
     return result;
 }
 
-std::shared_ptr<BaseEntity> Console::FindEntity(const std::string &name)
-{
+std::shared_ptr<BaseEntity> Console::FindEntity(const std::string &name) {
     if (!WorldPointer)
         return nullptr;
     return WorldPointer->GetEntity(name);
 }
 
-void Console::Log(const std::string &message)
-{
+void Console::Log(const std::string &message) {
     std::lock_guard<std::mutex> lock(Mutex);
     LogEntries.push_back({message, LogDuration});
     std::cout << message << std::endl;
 }
 
-std::vector<std::string> Console::SplitArgs(const std::string &str, char delimiter)
-{
+std::vector<std::string> Console::SplitArgs(const std::string &str, char delimiter) {
     std::vector<std::string> tokens;
     std::stringstream ss(str);
     std::string item;
-    while (std::getline(ss, item, delimiter))
-    {
+    while (std::getline(ss, item, delimiter)) {
         if (!item.empty())
             tokens.push_back(item);
     }
     return tokens;
 }
 
-void Console::RegisterDefaultCommands()
-{
-    Commands["/echo"] = {
-        "echo",
-        "Prints text to the console",
-        [](Console *console, const std::vector<std::string> &args)
-        {
-            if (args.empty())
-            {
-                console->Log("[USAGE] echo <message>");
-                return;
-            }
-            std::ostringstream out;
-            for (const auto &s : args)
-                out << s << " ";
-            console->Log(out.str());
-        }};
+void Console::RegisterDefaultCommands() {
+    Commands["/echo"] = {"echo", "Prints text to the console",
+                         [](Console *console, const std::vector<std::string> &args) {
+                             if (args.empty()) {
+                                 console->Log("[USAGE] echo <message>");
+                                 return;
+                             }
+                             std::ostringstream out;
+                             for (const auto &s : args)
+                                 out << s << " ";
+                             console->Log(out.str());
+                         }};
 
-    Commands["/help"] = {
-        "help",
-        "Displays list of commands",
-        [](Console *console, const std::vector<std::string> &)
-        {
-            console->Log("Available commands:");
-            for (const auto &[name, cmd] : console->Commands)
-                console->Log(" - " + name + ": " + cmd.Description);
-        }};
+    Commands["/help"] = {"help", "Displays list of commands", [](Console *console, const std::vector<std::string> &) {
+                             console->Log("Available commands:");
+                             for (const auto &[name, cmd] : console->Commands)
+                                 console->Log(" - " + name + ": " + cmd.Description);
+                         }};
 
-    Commands["/clear"] = {
-        "clear",
-        "Clears console log",
-        [](Console *console, const std::vector<std::string> &)
-        {
-            console->LogEntries.clear();
-            console->Log("[CONSOLE] Log cleared");
-        }};
+    Commands["/clear"] = {"clear", "Clears console log", [](Console *console, const std::vector<std::string> &) {
+                              console->LogEntries.clear();
+                              console->Log("[CONSOLE] Log cleared");
+                          }};
 
-    Commands["/list"] = {"list", "Lists all entities", [](Console *self, const std::vector<std::string> &)
-                         {
+    Commands["/list"] = {"list", "Lists all entities", [](Console *self, const std::vector<std::string> &) {
                              size_t idx = 0;
-                             for (auto &e : self->WorldPointer->GetEntities())
-                             {
+                             for (auto &e : self->WorldPointer->GetEntities()) {
                                  if (e)
                                      self->Log(std::to_string(idx++) + ": " + e->GetName());
                              }
                          }};
-    Commands["/delete"] = {"delete", "Deletes an entity: delete <name>",
-                           [](Console *self, const std::vector<std::string> &args)
-                           {
-                               if (args.size() < 2)
-                               {
-                                   self->Log("Usage: delete <entity>");
-                                   return;
-                               }
-                               auto entity = self->FindEntity(args[1]);
-                               if (!entity)
-                               {
-                                   self->Log("Entity not found: " + args[1]);
-                                   return;
-                               }
-                               self->WorldPointer->RemoveEntity(entity);
-                               self->Log("Deleted entity " + args[1]);
-                           }};
-
-    Commands["/pos"] = {"pos", "Set position: pos <entity> x y z",
-                        [](Console *self, const std::vector<std::string> &args)
-                        {
-                            if (args.size() != 5)
-                            {
-                                self->Log("Usage: pos <entity> x y z");
-                                return;
-                            }
-                            auto entity = self->FindEntity(args[1]);
-                            if (!entity)
-                            {
-                                self->Log("Entity not found: " + args[1]);
-                                return;
-                            }
-                            float x = std::stof(args[2]);
-                            float y = std::stof(args[3]);
-                            float z = std::stof(args[4]);
-                            entity->GetTransform().position = {x, y, z};
-                            self->Log("Position set for " + args[1]);
-                        }};
 }
