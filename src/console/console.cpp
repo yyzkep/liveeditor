@@ -31,8 +31,8 @@ void Console::Update(float deltaTime) {
             }
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Slash))
-            IsActive = !IsActive;
+        if (ImGui::IsKeyPressed(ImGuiKey_T))
+            IsActive = true;
 
         if (IsActive) {
             ImGuiIO &io = *IOContext;
@@ -45,9 +45,6 @@ void Console::Update(float deltaTime) {
 
             if (ImGui::IsKeyPressed(ImGuiKey_Backspace) && !InputBuffer.empty())
                 InputBuffer.pop_back();
-            else if (InputBuffer.empty() && ImGui::IsKeyPressed(ImGuiKey_Backspace)) {
-                IsActive = false;
-            }
 
             if (ImGui::IsKeyPressed(ImGuiKey_Enter)) {
                 QueuedCommands.push_back(InputBuffer);
@@ -66,8 +63,6 @@ void Console::ExecuteCommands() {
 }
 
 void Console::Draw() {
-    if (!IsActive)
-        return;
     ImDrawList *draw_list = ImGui::GetBackgroundDrawList();
     ImVec2 io_size = IOContext->DisplaySize;
     float padding = 5.f, title_h = 20.f, input_h = 20.f;
@@ -85,15 +80,17 @@ void Console::Draw() {
     draw_list->AddLine({x, y + title_h}, {x + width, y + title_h}, IM_COL32(235, 203, 139, 200));
     draw_list->AddText({x + 5, y + 3}, IM_COL32(235, 203, 139, 255), "console");
 
-    std::string prompt = "> " + InputBuffer + ((int)(ImGui::GetTime() * 2) % 2 ? "_" : "");
-    draw_list->AddText({x + 5, y + height - input_h}, IM_COL32(142, 192, 124, 255), prompt.c_str());
+    if (IsActive) {
+        std::string prompt = "> " + InputBuffer + ((int)(ImGui::GetTime() * 2) % 2 ? "_" : "");
+        draw_list->AddText({x + 5, y + height - input_h}, IM_COL32(142, 192, 124, 255), prompt.c_str());
 
-    float log_y = y + title_h + 5.f;
-    for (auto it = LogEntries.rbegin(); it != LogEntries.rend(); ++it) {
-        draw_list->AddText({x + 5, log_y}, IM_COL32(215, 153, 33, 255), it->Text.c_str());
-        log_y += 20.f;
-        if (log_y > y + height - input_h - padding)
-            break;
+        float log_y = y + title_h + 5.f;
+        for (auto it = LogEntries.rbegin(); it != LogEntries.rend(); ++it) {
+            draw_list->AddText({x + 5, log_y}, IM_COL32(215, 153, 33, 255), it->Text.c_str());
+            log_y += 20.f;
+            if (log_y > y + height - input_h - padding)
+                break;
+        }
     }
 }
 

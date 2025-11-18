@@ -22,9 +22,9 @@ int main() {
             window.BeginFrame();
             camera.Update(window.GetGLFWwindow(), window.GetDeltaTime());
 
-            if (console.WantsInput()) {
+            //if (console.WantsInput()) {
                 console.Update(window.GetDeltaTime());
-            }
+            //}
 
             console.Draw();
 
